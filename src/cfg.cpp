@@ -54,90 +54,96 @@ void detailed_mode(const string &initial_var, const vector<string> &variables, c
     cout << "\nCadeia gerada:\n" << chain << endl;
 }
 
-// Função para verificar se a cadeia gerada já foi usada
-bool isChainUsed(const string &chain, set<string> &used_chains) {
-    if (used_chains.find(chain) != used_chains.end()) {
-        return true; // Cadeia já foi gerada
-    }
-    used_chains.insert(chain); // Armazena a nova cadeia
-    return false;
-}
+void fast_mode(const std::string &initial_var, const std::vector<std::string> &variables, const std::map<std::string, std::vector<std::string>> &productions) {
+    std::vector<std::string> chain_possibility;
+    std::vector<std::string> ends_possibility;
 
-// Função auxiliar para substituir uma variável na cadeia
-string substituirVariavel(const string &cadeia, size_t posicao, const string &substituicao) {
-    string nova_cadeia = cadeia;
-    if (substituicao == "epsilon") {
-        nova_cadeia.replace(posicao, 1, "");
-    } else {
-        nova_cadeia.replace(posicao, 1, substituicao);
+    for (const auto& [x, prods] : productions) {
+        for (const auto& y : prods) {
+            if (y == "epsilon") {
+                chain_possibility.push_back(x);
+                ends_possibility.push_back(y);
+                continue;
+            }
+            bool is_end_possibility = true;
+            for (char i : y) {
+                if (std::find(variables.begin(), variables.end(), std::string(1, i)) != variables.end()) {
+                    is_end_possibility = false;
+                    break;
+                }
+            }
+            if (is_end_possibility) {
+                chain_possibility.push_back(x);
+                ends_possibility.push_back(y);
+            }
+        }
     }
-    return nova_cadeia;
-}
 
-void fast_mode(const string &initial_var, const vector<string> &variables, const map<string, vector<string>> &productions) {
-    set<string> used_chains; // Para armazenar as cadeias já geradas
     bool continue_fast_mode = true;
+    int k = 0;
 
     while (continue_fast_mode) {
-        string current_chain = initial_var; // Começa a partir da variável inicial
-        vector<string> derivation_steps; // Para armazenar os passos da derivação
-        bool found_variable = true;
+        std::string chain;
+        std::vector<std::string> chain_path;
 
-        cout << "--- Gerando uma nova cadeia ---" << endl;
+        if (k == chain_possibility.size()) {
+            k = 0;
+        }
+        chain_path.push_back(ends_possibility[k]);
+        chain_path.push_back(chain_possibility[k]);
+        k++;
 
-        // Enquanto houver variáveis na cadeia
-        while (found_variable) {
-            found_variable = false;
-
-            for (size_t i = 0; i < current_chain.size(); i++) {
-                char symbol = current_chain[i];
-                if (isupper(symbol)) {  // Se o símbolo é uma variável (não terminal)
-                    found_variable = true;
-                    string variable(1, symbol);  // Converter char para string
-
-                    if (productions.find(variable) != productions.end()) {
-                        bool new_chain_found = false;
-
-                        for (const string &replacement : productions.at(variable)) {
-                            string new_chain = substituirVariavel(current_chain, i, replacement);
-
-                            // Verifica se essa cadeia já foi gerada
-                            if (used_chains.find(new_chain) == used_chains.end()) {
-                                current_chain = new_chain; // Atualiza a cadeia atual
-                                derivation_steps.push_back(variable + " -> " + replacement);
-                                cout << "Produção aplicada: " << variable << " -> " + replacement << endl;
-                                new_chain_found = true;
-                                break; // Para substituir apenas uma variável por iteração
-                            }
-                        }
-
-                        // Se não encontrou uma nova cadeia, continuar a busca
-                        if (!new_chain_found) {
-                            continue; // Tente a próxima variável na sequência
-                        }
-                    } else {
-                        cout << "Erro: Variável " << variable << " não encontrada nas produções." << endl;
-                        return;
+        int i = 1;
+        while (chain_path[i] != initial_var) {
+            for (const auto& [x, prods] : productions) {
+                for (const auto& y : prods) {
+                    if (y.find(chain_path[i]) != std::string::npos) {
+                        chain_path.push_back(x);
+                        i++;
+                        break;
                     }
-                    break; // Para substituir apenas a primeira variável encontrada
+                }
+                if (chain_path[i] == initial_var) {
+                    break;
                 }
             }
         }
 
-        // Exibir a cadeia gerada e os passos da derivação
-        cout << "Cadeia final gerada: " << current_chain << endl;
-        cout << "Derivação (passos):" << endl;
-        for (const string &step : derivation_steps) {
-            cout << step << endl;
+        std::cout << "Derivacao:" << std::endl;
+        std::vector<std::string> chain_sub_str;
+        chain_sub_str.push_back(chain_path.back() + " -> ");
+        chain += chain_sub_str[0];
+
+        int j = 0;
+        for (int i = chain_path.size() - 1; i > 0; i--) {
+            auto it = productions.find(chain_path[i]);
+            for (const auto& x : it->second){
+                if (x.find(chain_path[i - 1]) != std::string::npos) {
+                    std::regex pattern("(.*?)(?= ->)");
+                    std::smatch match;
+                    if (std::regex_search(chain_sub_str[j], match, pattern)) {
+                        std::string aux = match.str(0);
+                        if (x == "epsilon") {
+                            aux.replace(aux.find(chain_path[i]), chain_path[i].length(), "");
+                        } else {
+                            aux.replace(aux.find(chain_path[i]), chain_path[i].length(), x);
+                        }
+                        chain_sub_str.push_back(aux + " -> ");
+                        j++;
+                        chain += chain_sub_str[j];
+                    }
+                    break;
+                }
+            }
         }
 
-        // Adiciona a nova cadeia ao conjunto de cadeias usadas
-        used_chains.insert(current_chain);
+        std::cout << chain.substr(0, chain.length() - 4) << std::endl;
+        std::cout << "Cadeia gerada:" << std::endl;
+        std::cout << chain_sub_str.back().substr(0, chain_sub_str.back().length() - 4) << std::endl;
 
-        // Perguntar se o usuário deseja gerar outra cadeia
-        cout << "\nDeseja gerar outra cadeia? (s/n)" << endl;
-        string keep;
-        cin >> keep;
+        std::cout << "\nDeseja gerar outra cadeia? (s/n)" << std::endl;
+        std::string keep;
+        std::cin >> keep;
         if (keep != "s" && keep != "S") {
             continue_fast_mode = false;
         }
