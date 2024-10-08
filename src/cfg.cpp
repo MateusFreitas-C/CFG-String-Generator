@@ -54,25 +54,21 @@ void detailed_mode(const string &initial_var, const vector<string> &variables, c
     cout << "\nCadeia gerada:\n" << chain << endl;
 }
 
+bool is_terminal(const std::string& str, const std::vector<std::string>& variables) {
+    // Verifica se todos os caracteres da string `str` não estão presentes na lista de variáveis
+    return std::all_of(str.begin(), str.end(), [&](char c) {
+        // Cria uma string de um caractere e verifica se ela está nas variáveis
+        return std::find(variables.begin(), variables.end(), std::string(1, c)) == variables.end();
+    });
+}
+
 void fast_mode(const std::string &initial_var, const std::vector<std::string> &variables, const std::map<std::string, std::vector<std::string>> &productions) {
     std::vector<std::string> chain_possibility;
     std::vector<std::string> ends_possibility;
 
     for (const auto& [x, prods] : productions) {
         for (const auto& y : prods) {
-            if (y == "epsilon") {
-                chain_possibility.push_back(x);
-                ends_possibility.push_back(y);
-                continue;
-            }
-            bool is_end_possibility = true;
-            for (char i : y) {
-                if (std::find(variables.begin(), variables.end(), std::string(1, i)) != variables.end()) {
-                    is_end_possibility = false;
-                    break;
-                }
-            }
-            if (is_end_possibility) {
+            if (y == "epsilon" || is_terminal(y, variables)) {
                 chain_possibility.push_back(x);
                 ends_possibility.push_back(y);
             }
@@ -83,63 +79,31 @@ void fast_mode(const std::string &initial_var, const std::vector<std::string> &v
     int k = 0;
 
     while (continue_fast_mode) {
-        std::string chain;
-        std::vector<std::string> chain_path;
-
-        if (k == chain_possibility.size()) {
-            k = 0;
-        }
-        chain_path.push_back(ends_possibility[k]);
-        chain_path.push_back(chain_possibility[k]);
-        k++;
-
-        int i = 1;
-        while (chain_path[i] != initial_var) {
-            for (const auto& [x, prods] : productions) {
-                for (const auto& y : prods) {
-                    if (y.find(chain_path[i]) != std::string::npos) {
-                        chain_path.push_back(x);
-                        i++;
-                        break;
-                    }
-                }
-                if (chain_path[i] == initial_var) {
-                    break;
-                }
-            }
-        }
-
+        std::string current = initial_var;
         std::cout << "Derivacao:" << std::endl;
-        std::vector<std::string> chain_sub_str;
-        chain_sub_str.push_back(chain_path.back() + " -> ");
-        chain += chain_sub_str[0];
+        std::cout << current;
 
-        int j = 0;
-        for (int i = chain_path.size() - 1; i > 0; i--) {
-            auto it = productions.find(chain_path[i]);
-            for (const auto& x : it->second){
-                if (x.find(chain_path[i - 1]) != std::string::npos) {
-                    std::regex pattern("(.*?)(?= ->)");
-                    std::smatch match;
-                    if (std::regex_search(chain_sub_str[j], match, pattern)) {
-                        std::string aux = match.str(0);
-                        if (x == "epsilon") {
-                            aux.replace(aux.find(chain_path[i]), chain_path[i].length(), "");
-                        } else {
-                            aux.replace(aux.find(chain_path[i]), chain_path[i].length(), x);
-                        }
-                        chain_sub_str.push_back(aux + " -> ");
-                        j++;
-                        chain += chain_sub_str[j];
-                    }
+        bool derivation_complete = false;
+        while (!derivation_complete) {
+            derivation_complete = true;
+            for (const auto& var : variables) {
+                size_t pos = current.find(var);
+                if (pos != std::string::npos) {
+                    derivation_complete = false;
+                    auto it = std::find(chain_possibility.begin(), chain_possibility.end(), var);
+                    const auto& prods = productions.at(*it);
+                    std::string replacement = prods[k % prods.size()];
+                    if (replacement == "epsilon") replacement = "";
+                    current.replace(pos, var.length(), replacement);
+                    std::cout << " -> " << current;
+                    k++;
                     break;
                 }
             }
         }
 
-        std::cout << chain.substr(0, chain.length() - 4) << std::endl;
-        std::cout << "Cadeia gerada:" << std::endl;
-        std::cout << chain_sub_str.back().substr(0, chain_sub_str.back().length() - 4) << std::endl;
+        std::cout << "\nCadeia gerada:" << std::endl;
+        std::cout << current << std::endl;
 
         std::cout << "\nDeseja gerar outra cadeia? (s/n)" << std::endl;
         std::string keep;
