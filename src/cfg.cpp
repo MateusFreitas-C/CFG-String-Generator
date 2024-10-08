@@ -63,40 +63,57 @@ bool is_terminal(const std::string& str, const std::vector<std::string>& variabl
 }
 
 void fast_mode(const std::string &initial_var, const std::vector<std::string> &variables, const std::map<std::string, std::vector<std::string>> &productions) {
-    std::vector<std::string> chain_possibility;
-    std::vector<std::string> ends_possibility;
+    std::vector<std::string> chain_possibility;     // Armazena as variáveis que podem gerar uma cadeia
+    std::vector<std::string> ends_possibility;      // Armazena as produções terminais ou epsilon que são possíveis cadeias finais
 
+    // Para cada produção da gramática
     for (const auto& [x, prods] : productions) {
         for (const auto& y : prods) {
+             // Se a produção for epsilon ou uma produção terminal, adiciona às listas
             if (y == "epsilon" || is_terminal(y, variables)) {
-                chain_possibility.push_back(x);
-                ends_possibility.push_back(y);
+                chain_possibility.push_back(x); // Adiciona a variável que gera a produção
+                ends_possibility.push_back(y); // Adiciona a produção
             }
         }
     }
 
     bool continue_fast_mode = true;
-    int k = 0;
+    int k = 0; // Contador para alternar entre as produções
 
     while (continue_fast_mode) {
-        std::string current = initial_var;
+        std::string current = initial_var; // A cadeia começa com a variável inicial
         std::cout << "Derivacao:" << std::endl;
         std::cout << current;
 
         bool derivation_complete = false;
         while (!derivation_complete) {
-            derivation_complete = true;
+
+            derivation_complete = true; // Assume que a derivação está completa até que uma variável seja encontrada
+
+            // Procura por variáveis (não terminais) na cadeia atual
             for (const auto& var : variables) {
-                size_t pos = current.find(var);
+                size_t pos = current.find(var);     // Encontra a posição da variável na cadeia
+
                 if (pos != std::string::npos) {
-                    derivation_complete = false;
+                    derivation_complete = false;    // Ainda há variáveis a serem substituídas
+                    
+                    // Encontra a variável na lista de possibilidades
                     auto it = std::find(chain_possibility.begin(), chain_possibility.end(), var);
+
+                    // Obtém as produções dessa variável
                     const auto& prods = productions.at(*it);
+                    
+                    // Seleciona uma produção baseada no valor de k (itera entre as produções)
                     std::string replacement = prods[k % prods.size()];
-                    if (replacement == "epsilon") replacement = "";
+
+                    // Se a produção for epsilon, remove a variável
+                    if (replacement == "epsilon") replacement = ""; 
+
+                    // Substitui a variável encontrada pela produção
                     current.replace(pos, var.length(), replacement);
                     std::cout << " -> " << current;
-                    k++;
+                    
+                    k++; // Incrementa o contador para alternar entre as produções
                     break;
                 }
             }
